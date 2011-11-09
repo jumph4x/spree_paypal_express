@@ -84,9 +84,18 @@ CheckoutController.class_eval do
         else
           order_ship_address.state_name = ship_address["state"]
         end
-
-        order_ship_address.save!
-
+        
+        begin
+          order_ship_address.save!
+        rescue ActiveRecord::RecordInvalid => ex
+          HoptoadNotifier.notify(
+                :error_class   => "Address from PayPal is broken",
+                :error_message => ex.message,
+                :parameters    => {:ship_address => ship_address.inspect}
+              )
+          order_ship_address.state_name = "not defined"
+        end
+        
         @order.ship_address = order_ship_address
         @order.bill_address = order_ship_address unless @order.bill_address
       end
